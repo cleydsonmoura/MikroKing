@@ -1,0 +1,31 @@
+# Secrets / local configuration
+.env
+.env.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# Logs
+*.log
+logs/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Coverage / build
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/

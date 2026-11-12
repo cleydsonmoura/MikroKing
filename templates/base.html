@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MikroKing - Painel de Monitoramento</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #f5f7fa; }
+        .card { box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+        .metric-value { font-size: 1.5rem; font-weight: 700; }
+        .latency-good { color: #198754; }
+        .latency-warn { color: #fd7e14; }
+        .latency-bad { color: #dc3545; }
+        .table-sm td, .table-sm th { vertical-align: middle; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <h1 class="h3 mb-0">MikroKing <small class="text-muted fs-6">Monitoramento em Tempo Real</small></h1>
+            <div>
+                <span class="badge bg-secondary" id="lastUpdate">Aguardando dados...</span>
+                <span class="badge bg-danger d-none" id="errorBadge">Erro de conexão</span>
+            </div>
+        </div>
+
+        <div id="errorAlert" class="alert alert-danger d-none" role="alert"></div>
+
+        <!-- System cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-2 col-6">
+                <div class="card h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">CPU</div>
+                        <div class="metric-value" id="cpuLoad">--%</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="card h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">Memória</div>
+                        <div class="metric-value" id="memUsage">--%</div>
+                        <div class="small text-muted" id="memDetail"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="card h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">Uptime</div>
+                        <div class="metric-value" id="uptime" style="font-size:1.05rem;">--</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="card h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">Versão</div>
+                        <div class="metric-value" id="version" style="font-size:1.05rem;">--</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="card h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">Modelo</div>
+                        <div class="metric-value" id="boardName" style="font-size:1.05rem;">--</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="card h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">Temperatura</div>
+                        <div class="metric-value" id="temperature">--</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="card h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">Conexões</div>
+                        <div class="metric-value" id="activeConnections">--</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="card h-100">
+                    <div class="card-body py-3">
+                        <div class="text-muted small">DHCP Leases</div>
+                        <div class="metric-value" id="dhcpLeases">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- WAN links -->
+        <h5 class="mb-3">Links de Internet</h5>
+        <div class="row g-3 mb-4" id="wanCards"></div>
+
+        <!-- Charts -->
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header">Latência por link (ms)</div>
+                    <div class="card-body">
+                        <canvas id="latencyChart" height="220"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header">Tráfego WAN (Mbps)</div>
+                    <div class="card-body">
+                        <canvas id="trafficChart" height="220"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header">CPU e Memória (%)</div>
+                    <div class="card-body">
+                        <canvas id="systemChart" height="220"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header">VLANs</div>
+                    <div class="card-body table-responsive" style="max-height: 280px;">
+                        <table class="table table-sm mb-0">
+                            <thead class="sticky-top bg-white">
+                                <tr>
+                                    <th>VLAN</th>
+                                    <th>ID</th>
+                                    <th>Interface</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vlanTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interfaces table -->
+        <div class="card mb-4">
+            <div class="card-header">Todas as Interfaces</div>
+            <div class="card-body table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Interface</th>
+                            <th>Tipo</th>
+                            <th>Status</th>
+                            <th>RX (Mbps)</th>
+                            <th>TX (Mbps)</th>
+                            <th>MTU</th>
+                            <th>MAC</th>
+                        </tr>
+                    </thead>
+                    <tbody id="interfacesTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const REFRESH_INTERVAL = {{ REFRESH_INTERVAL * 1000 }};
+        const LATENCY_WARNING_MS = {{ LATENCY_WARNING_MS }};
+        const LATENCY_CRITICAL_MS = {{ LATENCY_CRITICAL_MS }};
+
+        let latencyChart, trafficChart, systemChart;
+        const COLORS = ['#0d6efd', '#198754', '#fd7e14', '#6f42c1', '#20c997', '#d63384'];
+
+        function initCharts() {
+            latencyChart = new Chart(document.getElementById('latencyChart'), {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    animation: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: { y: { beginAtZero: true, title: { display: true, text: 'ms' } } }
+                }
+            });
+
+            trafficChart = new Chart(document.getElementById('trafficChart'), {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    animation: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: { y: { beginAtZero: true, title: { display: true, text: 'Mbps' } } }
+                }
+            });
+
+            systemChart = new Chart(document.getElementById('systemChart'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'CPU %', data: [], borderColor: '#dc3545', fill: false, tension: 0.2 },
+                        { label: 'Memória %', data: [], borderColor: '#0d6efd', fill: false, tension: 0.2 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    animation: false,
+                    scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: '%' } } }
+                }
+            });
+        }
+
+        function latencyClass(value) {
+            if (value === null || value === undefined) return 'text-muted';
+            if (value >= LATENCY_CRITICAL_MS) return 'latency-bad';
+            if (value >= LATENCY_WARNING_MS) return 'latency-warn';
+            return 'latency-good';
+        }
+
+        function formatMbps(bytesPerSecond) {
+            return ((bytesPerSecond || 0) * 8 / 1e6).toFixed(2);
+        }
+
+        function updateSystemCards(sys) {
+            if (!sys) return;
+            document.getElementById('cpuLoad').textContent = (sys.cpu_load ?? '--') + '%';
+            const memPct = sys.memory_percent != null ? Number(sys.memory_percent).toFixed(1) : '--';
+            document.getElementById('memUsage').textContent = memPct + '%';
+            if (sys.total_memory) {
+                const used = (sys.used_memory / 1024 / 1024).toFixed(0);
+                const total = (sys.total_memory / 1024 / 1024).toFixed(0);
+                document.getElementById('memDetail').textContent = `${used} / ${total} MB`;
+            }
+            document.getElementById('uptime').textContent = sys.uptime || '--';
+            document.getElementById('version').textContent = sys.version || '--';
+            document.getElementById('boardName').textContent = sys.board_name || '--';
+            document.getElementById('temperature').textContent =
+                (sys.temperature !== undefined && sys.temperature !== '') ? sys.temperature : '--';
+            document.getElementById('activeConnections').textContent =
+                (sys.active_connections !== undefined && sys.active_connections !== null) ? sys.active_connections : '--';
+            document.getElementById('dhcpLeases').textContent =
+                (sys.dhcp_leases !== undefined && sys.dhcp_leases !== null) ? sys.dhcp_leases : '--';
+        }
+
+        function updateWanCards(wanLinks) {
+            const container = document.getElementById('wanCards');
+            container.innerHTML = '';
+            const entries = Object.entries(wanLinks || {});
+            if (!entries.length) {
+                container.innerHTML = '<div class="col-12"><div class="alert alert-secondary mb-0">Nenhum link WAN detectado. Configure WAN_INTERFACES se necessário.</div></div>';
+                return;
+            }
+            entries.forEach(([iface, link], idx) => {
+                const statusBadge = link.running
+                    ? '<span class="badge bg-success">Conectado</span>'
+                    : '<span class="badge bg-danger">Desconectado</span>';
+                const latency = link.latency != null ? Number(link.latency).toFixed(1) + ' ms' : '--';
+                const lossVal = link.packet_loss != null ? Number(link.packet_loss) : null;
+                const loss = lossVal != null ? lossVal.toFixed(0) + '%' : '--';
+                const lossClass = lossVal == null ? 'text-muted' : (lossVal > 5 ? 'text-danger' : (lossVal > 0 ? 'text-warning' : 'text-success'));
+                const color = COLORS[idx % COLORS.length];
+                container.innerHTML += `
+                    <div class="col-lg-6">
+                        <div class="card h-100 border-start border-4" style="border-left-color: ${color} !important;">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <h5 class="mb-0">${link.label || iface}</h5>
+                                        <div class="text-muted small">${iface}${link.type ? ' (' + link.type + ')' : ''}</div>
+                                    </div>
+                                    ${statusBadge}
+                                </div>
+                                <div class="row g-2 text-center">
+                                    <div class="col-6 col-md-3">
+                                        <div class="text-muted small">Latência</div>
+                                        <div class="fw-bold ${latencyClass(link.latency)}">${latency}</div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <div class="text-muted small">Perda</div>
+                                        <div class="fw-bold ${lossClass}">${loss}</div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <div class="text-muted small">RX</div>
+                                        <div class="fw-bold">${formatMbps(link.rx_rate)} Mbps</div>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <div class="text-muted small">TX</div>
+                                        <div class="fw-bold">${formatMbps(link.tx_rate)} Mbps</div>
+                                    </div>
+                                </div>
+                                <hr class="my-2">
+                                <div class="row small text-muted">
+                                    <div class="col-6">IP: ${link.ip || '--'}</div>
+                                    <div class="col-6">Gateway: ${link.gateway || '--'}</div>
+                                    <div class="col-6">Link rate: ${link.link_rate || '--'}</div>
+                                    <div class="col-6">Ping: ${link.ping_target || '--'}${link.vrf ? ' (VRF: ' + link.vrf + ')' : ''}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function updateVlans(vlans) {
+            const tbody = document.getElementById('vlanTableBody');
+            tbody.innerHTML = '';
+            if (!vlans || !vlans.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-muted">Nenhuma VLAN encontrada</td></tr>';
+                return;
+            }
+            vlans.forEach(v => {
+                const badge = v.running ? '<span class="badge bg-success">Ativa</span>' : '<span class="badge bg-secondary">Parada</span>';
+                tbody.innerHTML += `<tr>
+                    <td>${v.name || '--'}</td>
+                    <td>${v.vlan_id || '--'}</td>
+                    <td>${v.interface || '--'}</td>
+                    <td>${badge}</td>
+                </tr>`;
+            });
+        }
+
+        function updateInterfaces(interfaces) {
+            const tbody = document.getElementById('interfacesTableBody');
+            tbody.innerHTML = '';
+            const entries = Object.entries(interfaces || {});
+            entries.sort(([a], [b]) => a.localeCompare(b));
+            entries.forEach(([name, iface]) => {
+                const badge = iface.running
+                    ? '<span class="badge bg-success">Up</span>'
+                    : '<span class="badge bg-danger">Down</span>';
+                tbody.innerHTML += `<tr>
+                    <td>${name}</td>
+                    <td><span class="badge bg-light text-dark">${iface.type || '--'}</span></td>
+                    <td>${badge}</td>
+                    <td>${formatMbps(iface.rx_rate)}</td>
+                    <td>${formatMbps(iface.tx_rate)}</td>
+                    <td>${iface.mtu || '--'}</td>
+                    <td><code>${iface.mac_address || '--'}</code></td>
+                </tr>`;
+            });
+        }
+
+        function updateCharts(history, wanLinks) {
+            if (!history || !history.timestamps) return;
+            const labels = history.timestamps.map(ts => new Date(ts * 1000).toLocaleTimeString());
+
+            const latencyDatasets = [];
+            Object.entries(history.latency || {}).forEach(([iface, values], idx) => {
+                const link = wanLinks[iface] || {};
+                latencyDatasets.push({
+                    label: link.label || iface,
+                    data: values.map(v => v != null ? Number(Number(v).toFixed(2)) : null),
+                    borderColor: COLORS[idx % COLORS.length],
+                    backgroundColor: COLORS[idx % COLORS.length],
+                    fill: false,
+                    tension: 0.2,
+                    spanGaps: true,
+                });
+            });
+            latencyChart.data.labels = labels;
+            latencyChart.data.datasets = latencyDatasets;
+            latencyChart.update('none');
+
+            const trafficDatasets = [];
+            Object.entries(history.traffic || {}).forEach(([iface, t], idx) => {
+                const link = wanLinks[iface] || {};
+                const color = COLORS[idx % COLORS.length];
+                trafficDatasets.push({
+                    label: `${link.label || iface} RX`,
+                    data: t.rx.map(v => Number(((v || 0) * 8 / 1e6).toFixed(2))),
+                    borderColor: color,
+                    backgroundColor: color,
+                    fill: false,
+                    tension: 0.2,
+                });
+                trafficDatasets.push({
+                    label: `${link.label || iface} TX`,
+                    data: t.tx.map(v => Number(((v || 0) * 8 / 1e6).toFixed(2))),
+                    borderColor: color,
+                    backgroundColor: color,
+                    borderDash: [5, 4],
+                    fill: false,
+                    tension: 0.2,
+                });
+            });
+            trafficChart.data.labels = labels;
+            trafficChart.data.datasets = trafficDatasets;
+            trafficChart.update('none');
+
+            systemChart.data.labels = labels;
+            systemChart.data.datasets[0].data = history.cpu || [];
+            systemChart.data.datasets[1].data = history.memory || [];
+            systemChart.update('none');
+        }
+
+        async function fetchMetrics() {
+            try {
+                const res = await fetch('/api/metrics', { cache: 'no-store' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return await res.json();
+            } catch (err) {
+                console.error('Falha ao buscar métricas:', err);
+                return null;
+            }
+        }
+
+        async function updateDashboard() {
+            const data = await fetchMetrics();
+            if (!data) {
+                document.getElementById('errorBadge').classList.remove('d-none');
+                return;
+            }
+            document.getElementById('errorBadge').classList.toggle('d-none', !data.error);
+            const errorAlert = document.getElementById('errorAlert');
+            if (data.error) {
+                errorAlert.textContent = 'Erro: ' + data.error;
+                errorAlert.classList.remove('d-none');
+            } else {
+                errorAlert.classList.add('d-none');
+            }
+            if (data.last_update) {
+                document.getElementById('lastUpdate').textContent =
+                    'Atualizado: ' + new Date(data.last_update * 1000).toLocaleTimeString();
+            }
+            updateSystemCards(data.system);
+            updateWanCards(data.wan_links);
+            updateVlans(data.vlans);
+            updateInterfaces(data.interfaces);
+            updateCharts(data.history, data.wan_links);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            updateDashboard();
+            setInterval(updateDashboard, REFRESH_INTERVAL);
+        });
+    </script>
+</body>
+</html>
