@@ -162,6 +162,69 @@ Para expor na rede local, o servidor já escuta em `0.0.0.0:5000`.
 
 ---
 
+## Executar com Docker
+
+### Build da imagem
+
+```bash
+docker build -t mikroking .
+```
+
+### Executar com variáveis de ambiente
+
+```bash
+docker run -d \
+  --name mikroking \
+  --restart unless-stopped \
+  -p 5000:5000 \
+  -e MIKROTIK_HOST=192.168.88.1 \
+  -e MIKROTIK_USER=dashboard \
+  -e MIKROTIK_PASS=UMA_SENHA_FORTE \
+  -e WAN_INTERFACES=ether3-BRD,ether2-Claro \
+  -e WAN_LABELS="Link Principal,Link Backup" \
+  -e WAN_PING_MODE=public \
+  mikroking
+```
+
+### Executar usando o `.env`
+
+```bash
+docker run -d \
+  --name mikroking \
+  --restart unless-stopped \
+  -p 5000:5000 \
+  --env-file .env \
+  mikroking
+```
+
+> O `.env` **não** é copiado para a imagem. Ele é lido em tempo de execução
+> via `--env-file` ou variáveis `-e`.
+
+### Docker Compose
+
+Crie um `docker-compose.yml`:
+
+```yaml
+services:
+  mikroking:
+    build: .
+    container_name: mikroking
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+```
+
+Depois execute:
+
+```bash
+docker compose up -d --build
+```
+
+> O container precisa ter acesso de rede ao IP do MikroTik. Se o painel rodar em
+> outra máquina/rede, ajuste `MIKROTIK_HOST` e libere a porta 8728/8729 no firewall.
+
 ## Estrutura do projeto
 
 ```

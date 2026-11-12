@@ -1,0 +1,9 @@
+services:
+  mikroking:
+    build: .
+    container_name: mikroking
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
